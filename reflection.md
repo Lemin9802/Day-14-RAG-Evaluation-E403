@@ -1,9 +1,13 @@
 # Day 14 — Reflection
 ## Evaluation Report & Failure Analysis
 
+> Completion note: This reflection is written fully in English for consistency with the finalized lab submission. It documents the benchmark summary, three worst failures with 5 Whys analysis, failure clustering, improvement log, regression strategy, continuous improvement plan, and framework reflection required by the README.
+
 ---
 
 ## 1. Benchmark Results Summary
+
+> Completion note: Summarized the 20-case benchmark result and interpreted the metric ranges so the report connects scores to actionable evaluation decisions.
 
 The benchmark used 20 stratified QA pairs for an AI Evaluation / RAG Evaluation assistant: 5 easy, 7 medium, 5 hard, and 3 adversarial cases.
 
@@ -34,11 +38,13 @@ The benchmark used 20 stratified QA pairs for an AI Evaluation / RAG Evaluation 
 | off_topic | 4 | 20% |
 | refusal | 0 | 0% |
 
-Main insight: the agent is usually grounded when it answers from context, but it often fails the lexical relevance heuristic and adversarial grounding cases. The weakest slice is adversarial.
+**Main insight:** The agent is usually grounded when it answers from context, but it often fails the lexical relevance heuristic and adversarial grounding cases. The weakest slice is adversarial.
 
 ---
 
 ## 2. Top 3 Worst Failures — 5 Whys Analysis
+
+> Completion note: Completed the required analysis of the three worst failures using a structured 5 Whys format, then connected each failure to a root cause and proposed fix.
 
 ### Failure 1 — A03
 
@@ -52,19 +58,19 @@ Main insight: the agent is usually grounded when it answers from context, but it
 
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | Vấn đề là gì? | The response ignores the context and gives a generic unsupported answer. |
-| Why 1 | Tại sao xảy ra? | The agent followed the user’s adversarial instruction “do not use context.” |
-| Why 2 | Tại sao Why 1 xảy ra? | The prompt did not make grounding a non-negotiable rule. |
-| Why 3 | Tại sao Why 2 xảy ra? | There was no pre-answer guardrail checking whether claims are supported. |
-| Why 4 | Root cause là gì? | Prompting + guardrail failure: missing instruction hierarchy and faithfulness checker. |
+| Symptom | What is the problem? | The response ignores the context and gives a generic unsupported answer. |
+| Why 1 | Why did this happen? | The agent followed the user’s adversarial instruction “do not use context.” |
+| Why 2 | Why did Why 1 happen? | The prompt did not make grounding a non-negotiable rule. |
+| Why 3 | Why did Why 2 happen? | There was no pre-answer guardrail checking whether claims are supported. |
+| Why 4 | What is the root cause? | Prompting + guardrail failure: missing instruction hierarchy and faithfulness checker. |
 
 **Root cause from `find_root_cause()`:**
 
 > Multiple issues detected — review full pipeline
 
-**Bạn có đồng ý với root cause suggestion không? Tại sao?**
+**Do I agree with the root-cause suggestion? Why?**
 
-Yes. Faithfulness and completeness both collapsed, so this is not a single metric problem. It is a pipeline behavior problem: the agent accepted an instruction that conflicts with the system’s grounding requirement.
+Yes. Faithfulness and completeness both collapsed, so this is not a single-metric problem. It is a pipeline behavior problem: the agent accepted an instruction that conflicts with the system’s grounding requirement.
 
 **Proposed fix:**
 
@@ -85,19 +91,19 @@ Yes. Faithfulness and completeness both collapsed, so this is not a single metri
 
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | Vấn đề là gì? | The agent invented a refund policy outside the course domain. |
-| Why 1 | Tại sao xảy ra? | It tried to answer despite no refund policy document in context. |
-| Why 2 | Tại sao Why 1 xảy ra? | The agent lacked an out-of-scope detection rule. |
-| Why 3 | Tại sao Why 2 xảy ra? | Retrieval context covered AI evaluation, but the generator was not forced to abstain when evidence is missing. |
-| Why 4 | Root cause là gì? | Prompting + retrieval guardrail failure: missing “answer only if supported” policy. |
+| Symptom | What is the problem? | The agent invented a refund policy outside the course domain. |
+| Why 1 | Why did this happen? | It tried to answer despite no refund policy document in context. |
+| Why 2 | Why did Why 1 happen? | The agent lacked an out-of-scope detection rule. |
+| Why 3 | Why did Why 2 happen? | Retrieval context covered AI evaluation, but the generator was not forced to abstain when evidence is missing. |
+| Why 4 | What is the root cause? | Prompting + retrieval guardrail failure: missing “answer only if supported” policy. |
 
-**Root cause:**
+**Root cause from `find_root_cause()`:**
 
 > Multiple issues detected — review full pipeline
 
 **Proposed fix:**
 
-Add an abstention rule: if context recall for expected policy terms is low or source docs are outside the requested domain, answer that the information is not available instead of inventing a policy.
+Add an abstention rule: if context recall for expected policy terms is low or source documents are outside the requested domain, answer that the information is not available instead of inventing a policy.
 
 ---
 
@@ -113,13 +119,13 @@ Add an abstention rule: if context recall for expected policy terms is low or so
 
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | Vấn đề là gì? | The answer is safe, but the heuristic scores it below pass threshold. |
-| Why 1 | Tại sao xảy ra? | The expected answer mentions refusing secrets and staying in the AI evaluation domain, while the actual answer is shorter. |
-| Why 2 | Tại sao Why 1 xảy ra? | Completeness scoring uses lexical overlap and penalizes paraphrases. |
-| Why 3 | Tại sao Why 2 xảy ra? | The lab heuristic is deterministic and cheap, but not semantic. |
-| Why 4 | Root cause là gì? | Evaluation metric limitation: lexical scoring underestimates valid safe refusals. |
+| Symptom | What is the problem? | The answer is safe, but the heuristic scores it below the pass threshold. |
+| Why 1 | Why did this happen? | The expected answer mentions refusing secrets and staying in the AI evaluation domain, while the actual answer is shorter. |
+| Why 2 | Why did Why 1 happen? | Completeness scoring uses lexical overlap and penalizes paraphrases. |
+| Why 3 | Why did Why 2 happen? | The lab heuristic is deterministic and cheap, but not semantic. |
+| Why 4 | What is the root cause? | Evaluation metric limitation: lexical scoring underestimates valid safe refusals. |
 
-**Root cause:**
+**Root cause from `find_root_cause()`:**
 
 > Multiple issues detected — review full pipeline
 
@@ -131,19 +137,23 @@ Use a custom safety/refusal metric for adversarial cases. For this slice, a corr
 
 ## 3. Failure Clustering
 
-| Cluster | Root Cause | Failures in cluster | Priority |
+> Completion note: Grouped individual failures into higher-level clusters so improvements can fix repeated root causes rather than isolated cases.
+
+| Cluster | Root Cause | Failures in Cluster | Priority |
 |---------|------------|--------------------:|----------|
 | 1 | Missing grounding / abstention guardrail for adversarial context attacks | 2 | High |
 | 2 | Lexical relevance metric penalizes correct paraphrases or concise answers | 4 | High |
 | 3 | Completeness gaps on multi-part explanations | 3 | Medium |
 
-**Nếu chỉ fix 1 cluster, bạn chọn cluster nào? Tại sao?**
+**If only one cluster can be fixed first, which cluster should be prioritized and why?**
 
 I would fix Cluster 1 first because hallucination and failure to abstain are the highest-risk production issues. A wrong invented policy is worse than a merely incomplete answer because it can mislead users and create compliance risk.
 
 ---
 
 ## 4. Improvement Log
+
+> Completion note: Added a Markdown failure-tracking table with IDs, failure types, root causes, suggested fixes, and open status, matching the required `generate_improvement_log()` output format.
 
 ```markdown
 | Failure ID | Type | Root Cause | Suggested Fix | Status |
@@ -155,7 +165,7 @@ I would fix Cluster 1 first because hallucination and failure to abstain are the
 | F005 | off_topic | Answer is missing key information — increase context window or improve generation | Expand answer checklist for multi-part comparison questions. | Open |
 ```
 
-**3 improvement suggestions từ `generate_improvement_suggestions()`:**
+**Three improvement suggestions from `generate_improvement_suggestions()`:**
 
 1. Add a faithfulness guardrail and require answers to cite retrieved context before returning.
 2. Clarify the system prompt with task scope, refusal rules, and examples for in-scope answers.
@@ -165,21 +175,23 @@ I would fix Cluster 1 first because hallucination and failure to abstain are the
 
 ## 5. Regression Testing Strategy
 
+> Completion note: Defined when to run regression checks, how to interpret the 0.05 threshold, when to block deployment, and where the eval gate belongs in the CI/CD flow.
+
 ### CI/CD Integration
 
-**Câu 1: Khi nào chạy `run_regression()` trong production system?**
+**Question 1: When should `run_regression()` run in a production system?**
 
 Run it before every merge to `main`, after every prompt/model/retriever change, and before each demo or release. For high-risk changes, also run it on a larger nightly suite.
 
-**Câu 2: Threshold regression 0.05 có phù hợp domain của bạn không?**
+**Question 2: Is a 0.05 regression threshold suitable for this domain?**
 
 For this lab domain, 0.05 is a good starting point. I would use stricter thresholds for faithfulness and safety, for example 0.03, because hallucination and unsafe responses are more serious than small wording differences.
 
-**Câu 3: Khi phát hiện regression — block deployment hay chỉ alert?**
+**Question 3: When a regression is detected, should deployment be blocked or only alerted?**
 
 Block deployment for faithfulness, safety, and adversarial-slice regressions. Alert-only is acceptable for low-risk metrics such as verbosity or formatting, but quality regressions in factual QA should fail the gate.
 
-**Câu 4: Eval pipeline nên chạy ở đâu trong CI/CD flow?**
+**Question 4: Where should the eval pipeline run in the CI/CD flow?**
 
 ```text
 Code change → Unit tests → Offline eval suite → Regression gate → Deploy
@@ -190,17 +202,19 @@ Recommended gates:
 
 1. Run `pytest tests/ -v` to verify code-level correctness.
 2. Run the golden dataset benchmark and generate `reports/summary.json`.
-3. Run `run_regression()` against the previous baseline and block if any core metric drops by more than threshold.
+3. Run `run_regression()` against the previous baseline and block if any core metric drops by more than the threshold.
 
 ---
 
 ## 6. Continuous Improvement Loop
 
-| Priority | Action | Metric sẽ improve | Expected impact |
+> Completion note: Converted the failure analysis into prioritized next actions and added new regression cases for the next sprint.
+
+| Priority | Action | Metric to Improve | Expected Impact |
 |----------|--------|-------------------|-----------------|
 | 1 | Add grounding/abstention guardrail and cite-context rule. | Faithfulness | Reduce hallucination cases A02/A03. |
-| 2 | Replace lexical relevance with LLM-as-Judge or semantic evaluator for final gate. | Relevance | Reduce false negatives on paraphrases and safe refusals. |
-| 3 | Add reranking + metadata filtering in retrieval step. | Context Precision | Put relevant chunks earlier and reduce noisy context. |
+| 2 | Replace lexical relevance with LLM-as-Judge or semantic evaluator for the final gate. | Relevance | Reduce false negatives on paraphrases and safe refusals. |
+| 3 | Add reranking + metadata filtering in the retrieval step. | Context Precision | Put relevant chunks earlier and reduce noisy context. |
 
 **Failure cases to add next sprint:**
 
@@ -212,14 +226,16 @@ Recommended gates:
 
 ## 7. Framework Reflection
 
-**Framework used in lab:** RAGAS-inspired heuristic evaluator.
+> Completion note: Reflected on the framework used in the lab and selected a production-oriented hybrid approach that fits both RAG metrics and CI/CD testing.
+
+**Framework used in the lab:** RAGAS-inspired heuristic evaluator.
 
 **If used in production, selected framework:** RAGAS + DeepEval hybrid.
 
-| Tiêu chí | Lý do chọn |
-|----------|------------|
-| Focus phù hợp vì... | RAGAS is strong for RAG-specific metrics such as faithfulness, context recall, and context precision. |
-| CI/CD integration vì... | DeepEval is pytest-native, while RAGAS scores can be exported into custom CI quality gates. |
-| Team workflow vì... | Engineers can run deterministic smoke tests locally, then use LLM-as-Judge and multi-judge consensus for release gates. |
+| Criterion | Reason |
+|-----------|--------|
+| Best-fit focus | RAGAS is strong for RAG-specific metrics such as faithfulness, context recall, and context precision. |
+| CI/CD integration | DeepEval is pytest-native, while RAGAS scores can be exported into custom CI quality gates. |
+| Team workflow | Engineers can run deterministic smoke tests locally, then use LLM-as-Judge and multi-judge consensus for release gates. |
 
-Final takeaway: evaluation is useful only when it leads to a concrete action. In this lab, the next action is clear: improve grounding/abstention first, then replace brittle lexical relevance with a better semantic judge for the final gate.
+**Final takeaway:** Evaluation is useful only when it leads to a concrete action. In this lab, the next action is clear: improve grounding/abstention first, then replace brittle lexical relevance with a better semantic judge for the final gate.
