@@ -1,0 +1,21 @@
+{
+  "framework_1": {
+    "name": "RAGAS-inspired heuristic evaluator",
+    "results": {
+      "pass_rate": 0.8,
+      "avg_faithfulness": 0.897,
+      "avg_relevance": 0.678,
+      "avg_completeness": 0.905,
+      "avg_overall": 0.827
+    }
+  },
+  "framework_2": {
+    "name": "LLM-as-Judge rubric evaluator, 1-5 scoring normalized to 0-1",
+    "results": {
+      "pass_rate": 1.0,
+      "avg_rubric_score": 0.93,
+      "min_rubric_score": 0.85,
+      "max_rubric_score": 0.95
+    }
+  }
+}
