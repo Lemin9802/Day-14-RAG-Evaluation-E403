@@ -1,8 +1,9 @@
 """
-Day 14 — AI Evaluation & Benchmarking Pipeline
-AICB-P1: AI Practical Competency Program, Phase 1
+Implementation file for the Day 14 automatic evaluation pipeline.
 
-Completed solution for the RAGAS-inspired evaluation lab.
+This file completes the lab TODOs from template.py: data models, RAGAS-inspired
+answer/retrieval metrics, LLM-as-Judge scoring, benchmark reporting,
+regression checks, and failure-analysis suggestions.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 
+# Completed Task 1: replace the template placeholder with concrete QAPair fields.
 @dataclass
 class QAPair:
     """A question-answer pair for a golden evaluation dataset."""
@@ -24,6 +26,7 @@ class QAPair:
     retrieved_contexts: list[str] = field(default_factory=list)
 
 
+# Completed Task 1: store all evaluation scores and optional retrieval metrics.
 @dataclass
 class EvalResult:
     """Evaluation result for a single Q&A pair."""
@@ -38,11 +41,13 @@ class EvalResult:
     context_precision: float | None = None
     context_recall: float | None = None
 
+    # Completed Task 1: overall score is the mean of the three answer-side metrics.
     def overall_score(self) -> float:
         """Return the average answer-side score."""
         return (self.faithfulness + self.relevance + self.completeness) / 3.0
 
 
+# Implementation detail: add common question words to reduce inflated lexical overlap.
 STOPWORDS: set[str] = {
     "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
     "of", "in", "on", "at", "to", "for", "with", "as", "by", "and", "or",
@@ -52,6 +57,7 @@ STOPWORDS: set[str] = {
 }
 
 
+# Helper used by all heuristic metrics; accepts None safely for robustness.
 def _tokenize(text: str | None) -> set[str]:
     """Lowercase word tokenization, ignoring punctuation and stopwords."""
     if not text:
@@ -60,6 +66,7 @@ def _tokenize(text: str | None) -> set[str]:
     return {token for token in tokens if token not in STOPWORDS}
 
 
+# Helper to keep all metric outputs inside the required [0, 1] range.
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
@@ -70,24 +77,29 @@ def _overlap_score(numerator_tokens: set[str], denominator_tokens: set[str]) -> 
     return _clamp01(len(numerator_tokens & denominator_tokens) / len(denominator_tokens))
 
 
+# Completed Task 2 and Task 2b: answer-side and retrieval-side RAGAS-style metrics.
 class RAGASEvaluator:
     """RAGAS-inspired evaluator using deterministic word-overlap heuristics."""
 
+    # Completed Task 2: |answer tokens ∩ context tokens| / |answer tokens|.
     def evaluate_faithfulness(self, answer: str, context: str) -> float:
         answer_tokens = _tokenize(answer)
         context_tokens = _tokenize(context)
         return _overlap_score(context_tokens, answer_tokens)
 
+    # Completed Task 2: |answer tokens ∩ question tokens| / |question tokens|.
     def evaluate_relevance(self, answer: str, question: str) -> float:
         answer_tokens = _tokenize(answer)
         question_tokens = _tokenize(question)
         return _overlap_score(answer_tokens, question_tokens)
 
+    # Completed Task 2: |answer tokens ∩ expected tokens| / |expected tokens|.
     def evaluate_completeness(self, answer: str, expected: str) -> float:
         answer_tokens = _tokenize(answer)
         expected_tokens = _tokenize(expected)
         return _overlap_score(answer_tokens, expected_tokens)
 
+    # Completed Task 2b: measure expected-answer coverage over the union of retrieved chunks.
     def evaluate_context_recall(self, contexts: list[str], expected: str) -> float:
         expected_tokens = _tokenize(expected)
         if not expected_tokens:
@@ -98,6 +110,7 @@ class RAGASEvaluator:
             union_tokens |= _tokenize(chunk)
         return _overlap_score(union_tokens, expected_tokens)
 
+    # Completed Task 2b: rank-aware Average Precision over retrieved chunks.
     def evaluate_context_precision(
         self,
         contexts: list[str],
@@ -129,6 +142,7 @@ class RAGASEvaluator:
 
         return _clamp01(precision_sum / total_relevant)
 
+    # Completed Task 2: run all metrics, set pass/fail, and classify the failure type.
     def run_full_eval(
         self,
         answer: str,
@@ -177,6 +191,7 @@ class RAGASEvaluator:
         )
 
 
+# Completed Exercise 3.5: simple lexical reranker to improve rank-aware context precision.
 def rerank_by_overlap(contexts: list[str], query: str) -> list[str]:
     """Sort chunks by lexical overlap with a query, descending."""
     query_tokens = _tokenize(query)
@@ -187,10 +202,12 @@ def rerank_by_overlap(contexts: list[str], query: str) -> list[str]:
     )
 
 
+# Completed Task 3: injectable LLM-as-Judge wrapper with JSON score parsing and bias checks.
 class LLMJudge:
     """Uses an injected judge function to score responses according to a rubric."""
 
     def __init__(self, judge_llm_fn: Callable[[str], str]) -> None:
+        # Store the injected judge function so tests can use a deterministic mock judge.
         self.judge_llm_fn = judge_llm_fn
 
     def score_response(
@@ -200,6 +217,7 @@ class LLMJudge:
         rubric: dict[str, Any],
     ) -> dict[str, Any]:
         criteria_lines = "\n".join(f"- {name}: {desc}" for name, desc in rubric.items())
+        # README alignment: ask the judge for 1-5 rubric scores, then normalize to 0-1 below.
         prompt = (
             "You are a strict evaluation judge. Score each criterion from 1 to 5.\n"
             "Rubric scale: 5 = excellent, 4 = mostly correct, 3 = partial, "
@@ -232,6 +250,7 @@ class LLMJudge:
 
         return {"scores": scores, "reasoning": raw_response}
 
+    # Completed Task 3: detect positional, leniency, and severity bias from score batches.
     def detect_bias(self, scores_batch: list[dict[str, Any]]) -> dict[str, Any]:
         flat_scores: list[float] = []
         first_position_scores: list[float] = []
@@ -267,9 +286,11 @@ class LLMJudge:
         }
 
 
+# Completed Task 4: run benchmarks, summarize aggregate metrics, and detect regressions.
 class BenchmarkRunner:
     """Runs a full evaluation benchmark."""
 
+    # Completed Task 4: call the agent for each QAPair and evaluate each answer.
     def run(
         self,
         qa_pairs: list[QAPair],
@@ -291,6 +312,7 @@ class BenchmarkRunner:
             results.append(result)
         return results
 
+    # Completed Task 4: aggregate pass rate, average scores, and failure distribution.
     def generate_report(self, results: list[EvalResult]) -> dict[str, Any]:
         total = len(results)
         if total == 0:
@@ -323,6 +345,7 @@ class BenchmarkRunner:
             "failure_types": failure_types,
         }
 
+    # Completed Task 4: compare averages against baseline and flag drops greater than 0.05.
     def run_regression(self, new_results: list, baseline_results: list) -> dict:
         def avg(items: list[EvalResult], metric: str) -> float:
             return sum(getattr(item, metric) for item in items) / len(items) if items else 0.0
@@ -346,6 +369,7 @@ class BenchmarkRunner:
             "passed": len(regressions) == 0,
         }
 
+    # Completed Task 4: return cases where any answer-side metric is below threshold.
     def identify_failures(
         self,
         results: list[EvalResult],
@@ -361,9 +385,11 @@ class BenchmarkRunner:
         ]
 
 
+# Completed Task 5: group failures, infer root causes, and generate improvement actions.
 class FailureAnalyzer:
     """Analyzes failed evaluation results and suggests fixes."""
 
+    # Completed Task 5: count failures by failure_type for failure clustering.
     def categorize_failures(
         self, failures: list[EvalResult]
     ) -> dict[str, int]:
@@ -373,6 +399,7 @@ class FailureAnalyzer:
             categories[key] = categories.get(key, 0) + 1
         return categories
 
+    # Completed Task 5: infer root cause from the lowest score pattern.
     def find_root_cause(self, failure: EvalResult) -> str:
         scores = {
             "faithfulness": failure.faithfulness,
@@ -392,6 +419,7 @@ class FailureAnalyzer:
             return "Answer is missing key information — increase context window or improve generation"
         return "Multiple issues detected — review full pipeline"
 
+    # Completed Task 5: produce the Markdown tracking table requested by the README.
     def generate_improvement_log(self, failures: list, suggestions: list[str]) -> str:
         lines = [
             "| Failure ID | Type | Root Cause | Suggested Fix | Status |",
@@ -409,6 +437,7 @@ class FailureAnalyzer:
             )
         return "\n".join(lines)
 
+    # Completed Task 5: generate prioritized, actionable fixes from failure patterns.
     def generate_improvement_suggestions(
         self, failures: list[EvalResult]
     ) -> list[str]:
@@ -440,6 +469,7 @@ class FailureAnalyzer:
         return suggestions
 
 
+# Manual smoke test: quick example for running this file directly.
 if __name__ == "__main__":
     qa_pairs = [
         QAPair(
