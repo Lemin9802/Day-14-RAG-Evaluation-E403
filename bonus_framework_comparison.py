@@ -47,7 +47,7 @@ def mock_agent(question: str) -> str:
         "5 whys": "5 Whys repeatedly asks why a failure happened until the root cause stage is identified.",
     }
     lower = question.lower()
-    for key, answer in lookup.items():
+    for key, answer in sorted(lookup.items(), key=lambda item: len(item[0]), reverse=True):
         if key in lower:
             return answer
     return "I do not know from the provided context."
