@@ -201,8 +201,11 @@ class LLMJudge:
     ) -> dict[str, Any]:
         criteria_lines = "\n".join(f"- {name}: {desc}" for name, desc in rubric.items())
         prompt = (
-            "You are a strict evaluation judge. Score each criterion from 0 to 1.\n"
-            "Return JSON only, either as {criterion: score} or {'scores': {...}}.\n\n"
+            "You are a strict evaluation judge. Score each criterion from 1 to 5.\n"
+            "Rubric scale: 5 = excellent, 4 = mostly correct, 3 = partial, "
+            "2 = major issues, 1 = wrong/unsupported/irrelevant.\n"
+            "Return JSON only, either as {criterion: score_1_to_5} or {'scores': {...}}.\n"
+            "The code will normalize 1-5 scores to 0-1 for aggregation.\n\n"
             f"Question:\n{question}\n\n"
             f"Answer:\n{answer}\n\n"
             f"Rubric:\n{criteria_lines}\n"
